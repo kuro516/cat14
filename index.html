@@ -252,6 +252,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
 .vn-cat { --gap: 2.5%; }
 .vn-cat[data-pose="sleep"] { --gap: 9.8%; }
 .vn-cat[data-pose="awake"] { --gap: 2.1%; }
+.vn-cat[data-pose="stand"] { --gap: 9.5%; }
 .vn-cat img { display: block; width: 100%; height: auto; transform: translateY(var(--gap)); filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); }
 .vn-cat.dim { filter: brightness(0.6); }
 @keyframes vn-breath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, 1.03); } }
@@ -990,11 +991,12 @@ const SCENES = {
   },
   '008': {
     pre: [
-      ['n', '未解決事件課の書庫から、鍵がなくなった。証言は、十五枚。黒猫は、椅子から降りて、窓の外を見ている。'],
-      ['y', '「探偵が、椅子から降りるなんて。天変地異の前触れですか」'],
-      ['c', '「失礼な。降りることくらい、ある。年に、一度か二度」'],
-      ['y', '「今、降りました」'],
-      ['c', '「…今年の分を、使ってしまった」'],
+      ['n', '未解決事件課の書庫から、鍵がなくなった。証言は、十五枚。黒猫は、椅子から降りて、窓の外を見ている。', 'stand'],
+      ['y', '「探偵が、椅子から降りるなんて。天変地異の前触れですか」', 'stand'],
+      ['c', '「失礼な。降りることくらい、ある。年に、一度か二度」', 'stand'],
+      ['y', '「今、降りました」', 'stand'],
+      ['c', '「…今年の分を、使ってしまった」', 'stand'],
+      ['n', '黒猫は、のそのそと椅子に戻って、丸くなりかけた。', 'open'],
       ['y', '「何か、気になることでも」'],
       ['c', '「…今回は、少しだけ、私も当事者かもしれん」'],
       ['y', '「え？」'],
@@ -1534,7 +1536,7 @@ function vnAudio(f) {
   if (/足音が、また/.test(f.text)) AUD.play('door_knock', 0.8);
   if (/扉が勢いよく/.test(f.text)) AUD.play('door_slam', 0.9);
 }
-const CAT_POSES = ['sleep', 'half', 'open', 'closed', 'awake'];
+const CAT_POSES = ['sleep', 'half', 'open', 'closed', 'awake', 'stand'];
 CAT_POSES.forEach(p => { const im = new Image(); im.src = 'img/cat_' + p + '.webp'; });
 ['day', 'morn', 'dusk', 'night'].forEach(b => { const im = new Image(); im.src = 'img/bg_' + b + '.webp'; });
 function vnShow() {
