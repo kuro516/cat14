@@ -228,6 +228,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
   --vn-chair: #3A2A2A;
   --vn-eye: #F2C84B;
 }
+.truth-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .scene-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .scene-bar .label { margin-right: 4px; }
 .vn { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; color: var(--vn-ink); font-family: var(--font-body); }
@@ -1265,7 +1266,10 @@ function renderTruth(st, solved, i) {
   t.innerHTML = '<span class="label mono">CASE No.' + st.no + ' / RESOLVED</span><h2 id="h-truth">真相</h2>' +
     '<ul class="truth-list">' + st.truth.list.map(x => '<li>' + x + '</li>').join('') + '</ul>' +
     '<p>' + st.truth.body + '</p><p class="coda">' + st.truth.coda + '</p>' +
-    (i + 1 < STAGES.length ? '<button class="btn primary" id="next" type="button">次の事件へ</button>' : '');
+    '<div class="truth-actions">' +
+    (SCENES[st.no] && SCENES[st.no].post ? '<button class="btn' + (seen['post' + st.no] ? '' : ' primary') + '" id="to-post" type="button">▶ 後日談を見る</button>' : '') +
+    (i + 1 < STAGES.length ? '<button class="btn' + (seen['post' + st.no] || !(SCENES[st.no] && SCENES[st.no].post) ? ' primary' : '') + '" id="next" type="button">次の事件へ</button>' : '') +
+    '</div>';
 }
 
 function render(focusSel) {
@@ -1509,6 +1513,16 @@ function vnClose() {
   puzzleBgm();
   if (VN.key.startsWith('pre')) markSeen('title');
   if (VN.back && VN.back.focus) VN.back.focus();
+  // after the aftermath scene: bring the "next case" button into view
+  if (VN.key.startsWith('post') && VN.key.slice(4) === STAGES[state.cur].no && state.s[state.cur].solved) {
+    renderTruth(STAGES[state.cur], true, state.cur);
+    requestAnimationFrame(() => {
+      const nx = $('next');
+      if (!nx) return;
+      nx.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
+      try { nx.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+    });
+  }
 }
 function vnAudio(f) {
   const no = VN.key.slice(-3), post = VN.key.startsWith('post');
@@ -1647,23 +1661,13 @@ $('solve').addEventListener('click', () => {
   AUD.bgm(null);
   const jg = AUD.play('jingle_solved', 1);
   setTimeout(() => $('truth').scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' }), 300);
-  clearTimeout(state.postTimer); clearTimeout(state.postTimer2); clearTimeout(state.postTimer3);
-  let opened = false;
-  const openPost = () => {
-    if (opened) return; opened = true;
-    clearTimeout(state.postTimer); clearTimeout(state.postTimer2); clearTimeout(state.postTimer3);
-    if (state.cur !== i || VN.active || seen['post' + STAGES[i].no]) return;
-    vnOpen(STAGES[i].no, 'post', false);
-  };
-  if (jg) {
-    jg.addEventListener('ended', () => { state.postTimer = setTimeout(openPost, 500); }, { once: true });
-    jg.addEventListener('error', () => { state.postTimer = setTimeout(openPost, 800); }, { once: true });
-    state.postTimer2 = setTimeout(() => { if (jg.paused && jg.currentTime === 0) openPost(); }, 2000);
-    state.postTimer3 = setTimeout(openPost, 10500);
-  } else state.postTimer = setTimeout(openPost, 1200);
+  // the aftermath scene is opened by the player (tap), so the answer can be read in peace
+  if (jg) jg.addEventListener('ended', () => { if (state.cur === i && !VN.active) puzzleBgm(); }, { once: true });
+  else setTimeout(() => { if (state.cur === i && !VN.active) puzzleBgm(); }, 1200);
 });
 
 $('truth').addEventListener('click', e => {
+  if (e.target.closest('#to-post')) vnOpen(STAGES[state.cur].no, 'post', false);
   if (e.target.closest('#next')) setStage(state.cur + 1, true);
 });
 
@@ -1674,6 +1678,7 @@ $('hint').addEventListener('click', async () => {
   clearMsg();
   if (ss.hints === HL - 1 && !(await askConfirm('答えを、ほぼそのまま教えてもらいます。いいですか？', '聞く'))) return;
   ss.hints++; AUD.play('meow_hint', 0.9); render();
+  requestAnimationFrame(() => { const ps = $('hints').querySelectorAll('.hint'); const last = ps[ps.length - 1]; if (last) last.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' }); });
 });
 
 $('diag-btn').addEventListener('click', () => {
@@ -1696,10 +1701,11 @@ $('diag-btn').addEventListener('click', () => {
     (!placed.length ? '何も置いていないのに、間違いも何もない。'
       : pick ? String.fromCharCode(0x2460 + pick.id - 1) + 'の話者が、違っている。どこがおかしいかは、自分で考えろ。'
       : '今、置いてあるものに、間違いは見当たらん。…今のところは、な。');
+  requestAnimationFrame(() => d.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' }));
   if (pick) {
     const el = document.querySelector('#cards button[data-id="' + pick.id + '"]');
     const art = el && el.closest('article');
-    if (art) { document.querySelectorAll('.flag').forEach(x => x.classList.remove('flag')); clearTimeout(state.flagTimer); art.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' }); art.classList.add('flag'); state.flagTimer = setTimeout(() => art.classList.remove('flag'), 3500); }
+    if (art) { document.querySelectorAll('.flag').forEach(x => x.classList.remove('flag')); clearTimeout(state.flagTimer); art.classList.add('flag'); state.flagTimer = setTimeout(() => art.classList.remove('flag'), 3500); }
   }
 });
 
