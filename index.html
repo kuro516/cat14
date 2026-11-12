@@ -291,7 +291,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
 .intro p:nth-child(2) { animation-delay: 3s; }
 .intro p:nth-child(3) { animation-delay: 6s; }
 .intro .intro-next { opacity: 0; animation: introIn 1.2s ease 8.2s forwards; margin-top: 1.4em; min-height: 48px; }
-.intro.step2 p, .intro.step2 .intro-next { display: none; }
+.intro.step2 p, .intro.step2 .intro-next, .intro.step2 .intro-tap { display: none; }
+.intro-tap { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom)); text-align: center; font-size: .8rem; letter-spacing: .3em; opacity: 0; animation: tapHint 2.4s ease-in-out 2s infinite; }
+@keyframes tapHint { 0%, 100% { opacity: 0; } 50% { opacity: .75; } }
 .intro .menu[hidden] { display: none; }
 .intro .menu { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 1.2em; opacity: 0; animation: introIn .9s ease .1s forwards; }
 .intro .menu h1 { margin: 0 0 .5em; font-size: clamp(1.8rem, 8vw, 2.8rem); letter-spacing: .18em; font-weight: 900; }
@@ -318,6 +320,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
   <p>探偵は、よく眠る。</p>
   <p>けれど、ぐっすり眠れた日は、<br>ただの一日もない。</p>
   <button class="btn intro-next" id="intro-next" type="button">タップして進む</button>
+  <div class="intro-tap" aria-hidden="true">画面をタップ</div>
   <div class="menu" hidden>
     <h1>探偵は眠れない</h1>
     <button class="btn primary" id="intro-cont" type="button">つづきから</button>
@@ -784,6 +787,7 @@ const SCENES = {
       ['n', '未解決事件課の奥。日当たりのいい安楽椅子の上で、黒猫が丸くなっている。町の動物たちは、彼を「探偵」と呼ぶ。'],
       ['n', '彼が起きている時間を、課の誰も見たことがない。'],
       ['y', '「探偵、お休みのところすみません。未解決事件です」'],
+      ['n', '黒猫は、片目だけを開けた。', 'half'],
       ['c', '「…助手か。その言い方は矛盾している。未解決なら、まだ私の出番ではない」'],
       ['y', '「課員です」'],
       ['c', '「助手だろう。私の眠りを妨げに来るのだから」'],
@@ -793,7 +797,7 @@ const SCENES = {
       ['c', '「…一理ある。不愉快だが」'],
       ['y', '「事務所の棚から、クッキーが消えました。証言カードは三枚。ただ、誰の証言なのか、分からなくなっていて」'],
       ['c', '「証言者の名前が分からない証言。まるで、課の予算書だな」'],
-      ['n', '黒猫は、片目だけを開けた。'],
+      ['n', '黒猫は、あくびをひとつして、ようやく、カードのほうへ首を向けた。'],
       ['c', '「見るだけだぞ。触らん。肉球が汚れる」']
     ],
     post: [
@@ -1390,31 +1394,41 @@ new MutationObserver(syncInert).observe(document.body, { subtree: true, attribut
 const SND_KEY = 'tantei-wa-nemurenai-mute';
 const AUD = (() => {
   let muted = false; try { muted = localStorage.getItem(SND_KEY) === '1'; } catch (err) {}
-  const A = { muted, unlocked: false, want: null, cur: null, curName: null, fades: [], sfx: {}, vol: { bgm: 0.55, sfx: 0.8 } };
+  const A = { muted, unlocked: false, want: null, el: null, curName: null, tok: 0, sfx: {}, vol: { bgm: 0.55, sfx: 0.8 } };
   const BGMV = { bgm_title: 0.7, bgm_scenario: 0.5, bgm_puzzle: 0.45, bgm_puzzle_final: 0.5, bgm_epilogue: 0.55, bgm_ending: 0.6 };
   const mk = (n) => { try { const a = new Audio('audio/' + n + '.mp3'); a.preload = 'none'; return a; } catch (err) { return null; } };
   function fade(a, to, ms, done) {
     if (!a) return;
+    const id = (a._f = (a._f || 0) + 1);
     const from = a.volume, t0 = performance.now();
     const step = () => {
+      if (a._f !== id) return;
       const k = Math.min(1, (performance.now() - t0) / ms);
       try { a.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch (err) {}
       if (k < 1) requestAnimationFrame(step); else if (done) done();
     };
     step();
   }
+  // One persistent element for BGM: iOS only lets an element play if it was first started inside a tap,
+  // so we start it in the first gesture and then just swap its source.
   A.bgm = function (name) {
     A.want = name;
     if (!A.unlocked || A.muted) return;
     if (A.curName === name) return;
-    const old = A.cur; A.curName = name;
-    if (old) fade(old, 0, 700, () => { try { old.pause(); } catch (err) {} });
-    if (!name) { A.cur = null; return; }
-    const a = mk(name); if (!a) return;
-    a.loop = !/ending|epilogue/.test(name) ? true : false;
-    a.volume = 0; A.cur = a;
-    const p = a.play(); if (p && p.catch) p.catch(() => {});
-    fade(a, BGMV[name] * A.vol.bgm / 0.55 * 0.8, 1200);
+    A.curName = name;
+    const tok = ++A.tok;
+    const el = A.el || (A.el = new Audio());
+    const start = () => {
+      if (tok !== A.tok) return;
+      if (!name) { try { el.pause(); } catch (err) {} return; }
+      el.src = 'audio/' + name + '.mp3';
+      el.loop = !/ending|epilogue/.test(name);
+      el.volume = 0;
+      const p = el.play();
+      if (p && p.catch) p.catch(() => { if (tok === A.tok) A.curName = null; });
+      fade(el, Math.min(1, BGMV[name] * A.vol.bgm / 0.55 * 0.8), 1200);
+    };
+    if (!el.paused && el.src) fade(el, 0, 500, start); else start();
   };
   A.play = function (name, vol) {
     if (!A.unlocked || A.muted) return;
@@ -1422,22 +1436,29 @@ const AUD = (() => {
     if (!a) { a = A.sfx[name] = mk(name); if (!a) return; a.preload = 'auto'; }
     try { a.currentTime = 0; a.volume = (vol === undefined ? 1 : vol) * A.vol.sfx; const p = a.play(); if (p && p.catch) p.catch(() => {}); return a; } catch (err) {}
   };
+  A.kick = function () {
+    // every tap: if the wanted track is not actually playing (blocked earlier), try again
+    if (!A.unlocked || A.muted || !A.want) return;
+    const el = A.el;
+    if (!el || (el.paused && !el.ended)) { A.curName = null; A.bgm(A.want); }
+  };
   A.unlock = function () {
-    if (A.unlocked) return;
+    if (A.unlocked) { A.kick(); return; }
     A.unlocked = true;
     if (!A.muted && A.want) { const w = A.want; A.curName = null; A.bgm(w); }
   };
   A.setMuted = function (m) {
     A.muted = m;
     try { localStorage.setItem(SND_KEY, m ? '1' : '0'); } catch (err) {}
-    if (m) { if (A.cur) { try { A.cur.pause(); } catch (err) {} } A.cur = null; A.curName = null; Object.keys(A.sfx).forEach(k => { try { A.sfx[k].pause(); A.sfx[k].currentTime = 0; } catch (err) {} }); }
-    else if (A.want) { const w = A.want; A.curName = null; A.bgm(w); }
+    if (m) { A.tok++; if (A.el) { try { A.el.pause(); } catch (err) {} } A.curName = null; Object.keys(A.sfx).forEach(k => { try { A.sfx[k].pause(); A.sfx[k].currentTime = 0; } catch (err) {} }); }
+    else if (A.want && A.unlocked) { const w = A.want; A.curName = null; A.bgm(w); }
     const b = document.getElementById('snd');
     b.textContent = m ? '♪ 音なし' : '♪ 音あり'; b.setAttribute('aria-pressed', String(m));
   };
   return A;
 })();
-['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, () => AUD.unlock(), { once: false, passive: true }));
+// iOS Safari does not treat pointerdown as a gesture for media: use click / touchend / keydown
+['click', 'touchend', 'keydown'].forEach(ev => window.addEventListener(ev, () => AUD.unlock(), { passive: true }));
 $('snd').addEventListener('click', () => { AUD.unlock(); AUD.setMuted(!AUD.muted); });
 AUD.setMuted(AUD.muted);
 function puzzleBgm() { AUD.bgm(STAGES[state.cur].no === '008' ? 'bgm_puzzle_final' : 'bgm_puzzle'); }
