@@ -282,6 +282,23 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
 .ask-box p { margin: 0 0 16px; line-height: 1.7; }
 .ask-btns { display: flex; gap: 12px; justify-content: center; }
 .ask-btns .btn { min-width: 7em; min-height: 44px; }
+.ov-open { padding: 4px 14px; font-size: 0.9rem; border-width: 1px; }
+.ov { position: fixed; inset: 0; z-index: 250; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(6, 8, 18, 0.72); }
+.ov[hidden] { display: none; }
+.ov-box { width: 100%; max-width: 34em; max-height: 100%; display: flex; flex-direction: column; background: var(--surface, #1b1e2e); color: var(--ink, inherit); border: 1px solid var(--line, #8886); border-radius: 12px; overflow: hidden; }
+.ov-head { padding: 12px 14px 8px; display: flex; flex-direction: column; gap: 6px; }
+.ov-head h2 { margin: 0; font-size: 1rem; }
+.ov-list { list-style: none; margin: 0; padding: 0 6px; overflow-y: auto; flex: 1 1 auto; }
+.ov-list li { margin: 0; }
+.ov-list button { font: inherit; color: inherit; background: transparent; border: 0; border-top: 1px solid var(--line); width: 100%; text-align: left; display: flex; align-items: baseline; gap: 8px; padding: 8px 8px; min-height: 40px; cursor: pointer; min-width: 0; }
+.ov-list li:first-child button { border-top: 0; }
+.ov-list .num { font-size: 1.15rem; flex: none; }
+.ov-list .ov-text { flex: 1 1 auto; min-width: 0; font-size: 0.9rem; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ov-list .ov-tag { font-size: 0.7rem; font-weight: 700; color: var(--brass); border: 1px solid var(--brass); padding: 0 5px; margin-right: 6px; white-space: nowrap; }
+.ov-list .ov-who { flex: none; font-weight: 700; font-size: 0.9rem; min-width: 3.2em; text-align: right; color: var(--muted); }
+.ov-list .w-cat { color: var(--cat); } .ov-list .w-dog { color: var(--dog); } .ov-list .w-rabbit { color: var(--rabbit); } .ov-list .w-pigeon { color: var(--pigeon); } .ov-list .w-fox { color: var(--fox); }
+.ov-foot { padding: 10px 14px 12px; display: flex; justify-content: center; border-top: 1px solid var(--line); }
+.ov-foot .btn { min-width: 8em; min-height: 44px; }
 .intro { position: fixed; inset: 0; z-index: 150; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.1em; padding: 24px; text-align: center; background: #0b0d18; color: #e9e6dc; font-family: var(--font-display); transition: opacity .9s; }
 .intro { background: linear-gradient(rgba(8,10,20,.9), rgba(8,10,20,.9)), #0b0d18 url(img/title01.webp) center / cover no-repeat; }
 .intro.step2 { justify-content: flex-start; padding-top: 11vh; background: linear-gradient(rgba(8,10,20,.5), rgba(8,10,20,.15) 45%, rgba(8,10,20,.55)), #0b0d18 url(img/title01.webp) center / cover no-repeat; }
@@ -313,6 +330,13 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
   <div class="ask-box">
     <p id="ask-msg"></p>
     <div class="ask-btns"><button class="btn" id="ask-no" type="button">やめる</button><button class="btn primary" id="ask-yes" type="button">はい</button></div>
+  </div>
+</div>
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="ov-title" hidden>
+  <div class="ov-box">
+    <div class="ov-head"><h2 id="ov-title">いまの状況</h2><div class="counts" id="ov-counts"></div></div>
+    <ul class="ov-list" id="ov-list"></ul>
+    <div class="ov-foot"><button class="btn primary" id="ov-close" type="button">閉じる</button></div>
   </div>
 </div>
 <div class="intro" id="intro" role="dialog" aria-modal="true" aria-label="はじまり">
@@ -359,6 +383,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
     <div class="board-head">
       <h2 id="h-board">証言カード</h2>
       <div class="counts" id="counts" aria-live="polite"></div>
+      <button class="btn ov-open" id="ov-open" type="button">全体を見る</button>
     </div>
     <div class="hyp" id="hyp"></div>
     <div class="cards" id="cards"></div>
@@ -1357,6 +1382,45 @@ function render(focusSel) {
   }
 }
 
+function openOverview() {
+  const i = state.cur, st = STAGES[i], ss = state.s[i], n = countsOf(st, ss.asg);
+  $('ov-counts').innerHTML = st.animals.map(a =>
+    '<span class="count t-' + a + (n[a] === st.per ? ' full' : '') + '">' + NAME[a] + ' ' + n[a] + '/' + st.per + '</span>').join('');
+  $('ov-list').innerHTML = st.cards.map(c => {
+    const a = ss.asg[c.id];
+    return '<li><button type="button" data-ov="' + c.id + '"><span class="num">' + CIRC[c.id - 1] + '</span>' +
+      '<span class="ov-text">' + (c.fixed ? '<span class="ov-tag">物証あり</span>' : '') + (st.notes[c.id] ? '<span class="ov-tag">' + st.notes[c.id] + '</span>' : '') + '「' + c.text + '」</span>' +
+      '<span class="ov-who' + (a ? ' w-' + a : '') + '">' + (a ? NAME[a] : '─') + '</span></button></li>';
+  }).join('');
+  ovBack = document.activeElement;
+  $('ov').hidden = false;
+  $('ov-close').focus();
+}
+let ovBack = null;
+function closeOverview(jumpId) {
+  $('ov').hidden = true;
+  if (jumpId) {
+    const b = document.querySelector('#cards button[data-id="' + jumpId + '"]');
+    const art = b && b.closest('article');
+    if (art) {
+      art.scrollIntoView({ block: 'center', behavior: REDUCED ? 'auto' : 'smooth' });
+      document.querySelectorAll('.flag').forEach(x => x.classList.remove('flag'));
+      clearTimeout(state.flagTimer); art.classList.add('flag'); state.flagTimer = setTimeout(() => art.classList.remove('flag'), 2500);
+      const f = art.querySelector('button:not([disabled])'); if (f) f.focus({ preventScroll: true });
+      return;
+    }
+  }
+  if (ovBack && ovBack.focus) ovBack.focus();
+}
+$('ov-open').addEventListener('click', openOverview);
+$('ov-close').addEventListener('click', () => closeOverview());
+$('ov').addEventListener('click', e => {
+  if (e.target === $('ov')) return closeOverview();
+  const b = e.target.closest('button[data-ov]');
+  if (b) closeOverview(+b.dataset.ov);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('ov').hidden && $('ask').hidden) closeOverview(); });
+
 function clearMsg() { $('msg').textContent = ''; $('msg').className = 'msg'; $('diag').hidden = true; }
 function curState() { return state.s[state.cur]; }
 
@@ -1378,7 +1442,7 @@ function askConfirm(msg, yes) {
 }
 // keep keyboard focus inside the open dialog and inert the page behind it
 function topDialog() {
-  for (const id of ['ask', 'vn', 'intro']) { const el = $(id); if (el && !el.hidden) return el; }
+  for (const id of ['ask', 'ov', 'vn', 'intro']) { const el = $(id); if (el && !el.hidden) return el; }
   return null;
 }
 document.addEventListener('keydown', e => {
@@ -1617,7 +1681,6 @@ $('cards').addEventListener('click', e => {
   clearMsg();
   render('button[data-id="' + id + '"][data-a="' + a + '"]');
 });
-
 $('hyp').addEventListener('click', e => {
   const b = e.target.closest('button[data-hyp]');
   if (!b) return;
