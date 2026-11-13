@@ -1399,6 +1399,7 @@ function openOverview() {
 let ovBack = null;
 function closeOverview(jumpId) {
   $('ov').hidden = true;
+  syncInert(); // lift inert now, not on the observer's later tick, so focus can move
   if (jumpId) {
     const b = document.querySelector('#cards button[data-id="' + jumpId + '"]');
     const art = b && b.closest('article');
@@ -1406,7 +1407,9 @@ function closeOverview(jumpId) {
       art.scrollIntoView({ block: 'center', behavior: REDUCED ? 'auto' : 'smooth' });
       document.querySelectorAll('.flag').forEach(x => x.classList.remove('flag'));
       clearTimeout(state.flagTimer); art.classList.add('flag'); state.flagTimer = setTimeout(() => art.classList.remove('flag'), 2500);
-      const f = art.querySelector('button:not([disabled])'); if (f) f.focus({ preventScroll: true });
+      const f = art.querySelector('button:not([disabled])');
+      if (f) f.focus({ preventScroll: true });
+      else { art.tabIndex = -1; art.focus({ preventScroll: true }); }
       return;
     }
   }
@@ -1434,7 +1437,7 @@ function askConfirm(msg, yes) {
     $('ask-yes').textContent = yes || 'はい';
     box.hidden = false;
     $('ask-no').focus();
-    const done = v => { box.hidden = true; $('ask-yes').onclick = $('ask-no').onclick = null; box.onkeydown = null; if (back && back.focus) back.focus(); res(v); };
+    const done = v => { box.hidden = true; $('ask-yes').onclick = $('ask-no').onclick = null; box.onkeydown = null; syncInert(); if (back && back.focus) back.focus(); res(v); };
     $('ask-yes').onclick = () => done(true);
     $('ask-no').onclick = () => done(false);
     box.onkeydown = e => { if (e.key === 'Escape') done(false); };
@@ -1728,8 +1731,13 @@ $('solve').addEventListener('click', () => {
   const jg = AUD.play('jingle_solved', 1);
   setTimeout(() => $('truth').scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' }), 300);
   // the aftermath scene is opened by the player (tap), so the answer can be read in peace
-  if (jg) jg.addEventListener('ended', () => { if (state.cur === i && !VN.active) puzzleBgm(); }, { once: true });
-  else setTimeout(() => { if (state.cur === i && !VN.active) puzzleBgm(); }, 1200);
+  let back = false;
+  const resume = () => { if (back) return; back = true; if (state.cur === i && !VN.active) puzzleBgm(); };
+  if (jg) {
+    jg.addEventListener('ended', resume, { once: true });
+    jg.addEventListener('error', resume, { once: true });
+    setTimeout(resume, 15000); // safety net: the jingle never reported its end
+  } else setTimeout(resume, 1200);
 });
 
 $('truth').addEventListener('click', e => {
