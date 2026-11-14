@@ -305,13 +305,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--brass); out
 @media (orientation: landscape) { .intro { background-image: linear-gradient(rgba(8,10,20,.9), rgba(8,10,20,.9)), url(img/title02.webp); } .intro.step2 { background-image: linear-gradient(rgba(8,10,20,.5), rgba(8,10,20,.15) 45%, rgba(8,10,20,.55)), url(img/title02.webp); padding-top: 7vh; } }
 .intro.out { opacity: 0; pointer-events: none; }
 .intro[hidden] { display: none; }
-.intro p { margin: 0; max-width: 24em; font-size: clamp(1.05rem, 4.2vw, 1.5rem); line-height: 1.9; letter-spacing: .12em; opacity: 0; animation: introIn 1.6s ease forwards; }
-.intro p:nth-child(1) { animation-delay: .6s; }
-.intro p:nth-child(2) { animation-delay: 3s; }
-.intro p:nth-child(3) { animation-delay: 6s; }
-.intro .intro-next { opacity: 0; animation: introIn 1.2s ease 8.2s forwards; margin-top: 1.4em; min-height: 48px; }
+.intro p { margin: 0; max-width: 24em; font-size: clamp(1.05rem, 4.2vw, 1.5rem); line-height: 1.9; letter-spacing: .12em; opacity: 0; animation: introIn 0.9s ease forwards; }
+.intro p:nth-child(1) { animation-delay: .3s; }
+.intro p:nth-child(2) { animation-delay: 1.5s; }
+.intro p:nth-child(3) { animation-delay: 2.7s; }
+.intro .intro-next { opacity: 0; animation: introIn 0.8s ease 3.4s forwards; margin-top: 1.4em; min-height: 48px; }
+.intro .intro-next { min-width: 12em; background: rgba(10,12,24,.72); color: #f3efe2; border: 1px solid rgba(243,239,226,.55); backdrop-filter: blur(3px); }
+.intro .intro-next:hover:not(:disabled) { border-color: #e0b866; }
+.intro .intro-next:focus-visible { outline: 3px solid #f3d58a; outline-offset: 2px; }
 .intro.step2 p, .intro.step2 .intro-next, .intro.step2 .intro-tap { display: none; }
-.intro-tap { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom)); text-align: center; font-size: .8rem; letter-spacing: .3em; opacity: 0; animation: tapHint 2.4s ease-in-out 2s infinite; }
+.intro-tap { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom)); text-align: center; font-size: .8rem; letter-spacing: .3em; opacity: 0; animation: tapHint 2.4s ease-in-out 3.4s infinite; }
 @keyframes tapHint { 0%, 100% { opacity: 0; } 50% { opacity: .75; } }
 .intro .menu[hidden] { display: none; }
 .intro .menu { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 1.2em; opacity: 0; animation: introIn .9s ease .1s forwards; }
